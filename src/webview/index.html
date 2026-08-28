@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none';
+    style-src {{CSP_SOURCE}} 'unsafe-inline';
+    script-src 'nonce-{{NONCE}}';
+    img-src {{CSP_SOURCE}} data: https:;
+    font-src {{CSP_SOURCE}} data:;">
+  <title>DeepSeek Harness</title>
+  <style nonce="{{NONCE}}">
+    /* ========== 全局样式 ========== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: var(--vscode-foreground, #cccccc);
+      background-color: var(--vscode-editor-background, #1e1e1e);
+    }
+    #app {
+      padding: 12px;
+      min-height: 100%;
+      overflow-y: auto;
+    }
+    .section {
+      margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--vscode-foreground, #cccccc);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .hint {
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground, #888);
+      font-weight: normal;
+    }
+
+    /* ========== 输入框 ========== */
+    label.field-label {
+      display: block;
+      font-size: 11px;
+      margin-bottom: 4px;
+      color: var(--vscode-foreground, #cccccc);
+    }
+    textarea, input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      background: var(--vscode-input-background, #3c3c3c);
+      color: var(--vscode-input-foreground, #cccccc);
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    textarea:focus, input:focus {
+      outline: none;
+      border-color: var(--vscode-focusBorder, #007acc);
+    }
+    textarea.prompt-area { min-height: 90px; }
+    textarea.result-area {
+      min-height: 180px;
+      background: var(--vscode-editor-background, #1e1e1e);
+      line-height: 1.6;
+    }
+
+    /* ========== 参数配置区 ========== */
+    .params-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .params-grid .field { min-width: 0; }
+    input[type="number"] { width: 100%; }
+
+    /* ========== 按钮 ========== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 12px;
+      border: 1px solid var(--vscode-button-border, transparent);
+      background: var(--vscode-button-background, #0e639c);
+      color: var(--vscode-button-foreground, #ffffff);
+      border-radius: 3px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .btn:hover {
+      background: var(--vscode-button-hoverBackground, #1177bb);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--vscode-button-secondaryBackground, #3a3d41);
+      color: var(--vscode-button-secondaryForeground, #ffffff);
+    }
+    .btn-secondary:hover {
+      background: var(--vscode-button-secondaryHoverBackground, #45494e);
+    }
+    .btn-danger {
+      background: #a1260d;
+    }
+    .btn-danger:hover { background: #b32c10; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    /* ========== 设置提示 ========== */
+    .settings-alert {
+      padding: 8px 10px;
+      border-radius: 3px;
+      background: var(--vscode-inputValidation-warningBackground, #352a00);
+      border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500);
+      color: var(--vscode-inputValidation-warningForeground, #cccccc);
+      font-size: 12px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .settings-ok {
+      background: var(--vscode-inputValidation-infoBackground, #04395e);
+      border-color: var(--vscode-inputValidation-infoBorder, #007acc);
+    }
+
+    /* ========== 状态提示 ========== */
+    .toast {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      padding: 6px 12px;
+      border-radius: 3px;
+      font-size: 12px;
+      z-index: 999;
+      animation: fadeIn 0.2s ease;
+    }
+    .toast-info {
+      background: var(--vscode-inputValidation-infoBackground, #04395e);
+      color: #fff;
+    }
+    .toast-error {
+      background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+      color: #fff;
+    }
+    .toast-success {
+      background: #063c2b;
+      color: #fff;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ========== 结果代码块 ========== */
+    .result-rendered {
+      padding: 10px;
+      background: var(--vscode-editor-background, #1e1e1e);
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      border-radius: 3px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+    }
+    .code-block {
+      margin: 8px 0;
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      border-radius: 3px;
+      background: var(--vscode-textCodeBlock-background, #2a2d2e);
+    }
+    .code-block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background: var(--vscode-titleBar-inactiveBackground, #2d2d2d);
+      border-bottom: 1px solid var(--vscode-input-border, #3c3c3c);
+      font-size: 11px;
+    }
+    .code-lang {
+      color: var(--vscode-descriptionForeground, #888);
+      font-family: monospace;
+    }
+    .code-block pre {
+      padding: 8px;
+      margin: 0;
+      overflow-x: auto;
+      font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--vscode-editor-foreground, #d4d4d4);
+    }
+    .inline-code {
+      background: var(--vscode-textCodeBlock-background, #2a2d2e);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+    }
+
+    /* ========== 模板管理区 ========== */
+    .template-list {
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      border-radius: 3px;
+    }
+    .template-item {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--vscode-input-border, #3c3c3c);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      cursor: default;
+    }
+    .template-item:last-child { border-bottom: none; }
+    .template-item:hover {
+      background: var(--vscode-list-hoverBackground, #2a2d2e);
+    }
+    .template-name {
+      flex: 1;
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .template-actions { display: flex; gap: 4px; }
+    .mini-btn {
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 2px;
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      background: var(--vscode-input-background, #3c3c3c);
+      color: var(--vscode-foreground, #cccccc);
+    }
+    .mini-btn:hover { background: var(--vscode-button-hoverBackground, #0e639c); color: #fff; }
+    .empty-tpl {
+      padding: 16px;
+      text-align: center;
+      color: var(--vscode-descriptionForeground, #888);
+      font-size: 11px;
+    }
+
+    /* ========== 加载状态 ========== */
+    .loading {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ========== 折叠区块 ========== */
+    details.collapse {
+      border: 1px solid var(--vscode-input-border, #3c3c3c);
+      border-radius: 3px;
+      margin-bottom: 10px;
+    }
+    details.collapse > summary {
+      padding: 6px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      list-style: none;
+      user-select: none;
+      background: var(--vscode-sideBar-background, #252526);
+    }
+    details.collapse > summary::-webkit-details-marker { display: none; }
+    details.collapse[open] > summary {
+      border-bottom: 1px solid var(--vscode-input-border, #3c3c3c);
+    }
+    details.collapse > .collapse-body {
+      padding: 8px;
+    }
+
+    /* 滚动条样式 */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--vscode-scrollbarSlider-background, #424242);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--vscode-scrollbarSlider-hoverBackground, #4f4f4f);
+    }
+  </style>
+</head>
+<body>
+  <!-- 调试用：即使脚本执行失败，也至少能看到这一行（否则打开面板完全空白很难定位） -->
+  <div id="__initStatus" style="padding:6px 12px;font-size:11px;color:#888;background:#252526;border-bottom:1px solid #333;">
+    &#9881; Webview 面板初始化中... 若本提示一直不消失，请告知开发者「脚本未执行」
+  </div>
+  <div id="app">
+    <!-- 设置状态提示条 -->
+    <div id="settingsBar" class="settings-alert settings-ok" style="display:none;"></div>
+
+    <!-- ========== Prompt 输入区 ========== -->
+    <div class="section">
+      <div class="section-title">
+        <span>System Prompt</span>
+        <span class="hint">可选，系统指令</span>
+      </div>
+      <textarea id="systemPrompt" class="prompt-area" placeholder="你是一个专业的代码助手..."></textarea>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>User Prompt</span>
+        <span class="hint">必填，用户输入</span>
+      </div>
+      <textarea id="userPrompt" class="prompt-area" placeholder="请帮我写一个快速排序..."></textarea>
+    </div>
+
+    <!-- ========== 参数配置 ========== -->
+    <details class="collapse" open>
+      <summary>&#9881; 参数配置</summary>
+      <div class="collapse-body">
+        <div class="params-grid">
+          <div class="field">
+            <label class="field-label" for="temperature">temperature (0-2)</label>
+            <input type="number" id="temperature" min="0" max="2" step="0.1" value="1.0" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="top_p">top_p (0-1)</label>
+            <input type="number" id="topP" min="0" max="1" step="0.05" value="1.0" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="maxTokens">max_tokens</label>
+            <input type="number" id="maxTokens" min="1" max="128000" step="1" value="2048" />
+          </div>
+        </div>
+        <div style="margin-top: 8px;">
+          <label class="field-label" for="model">model</label>
+          <input type="text" id="model" value="deepseek-chat" />
+        </div>
+      </div>
+    </details>
+
+    <!-- ========== 操作按钮 ========== -->
+    <div class="section btn-row">
+      <button id="btnSend" class="btn">&#128640; 发送请求</button>
+      <button id="btnSaveTpl" class="btn btn-secondary">&#128190; 保存模板</button>
+      <button id="btnClear" class="btn btn-secondary">&#129529; 清空结果</button>
+    </div>
+
+    <!-- ========== 模板管理 ========== -->
+    <details class="collapse">
+      <summary>&#128218; Prompt 模板</summary>
+      <div class="collapse-body">
+        <div class="template-list" id="templateList">
+          <div class="empty-tpl">暂无模板，保存后会出现在这里</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ========== 结果展示 ========== -->
+    <div class="section">
+      <div class="section-title">
+        <span>返回结果</span>
+        <span class="hint" id="usageHint"></span>
+      </div>
+      <!-- 渲染版：识别代码块 -->
+      <div id="resultRendered" class="result-rendered" style="display:none;"></div>
+      <!-- 原始文本版（备用） -->
+      <textarea id="resultRaw" class="result-area" readonly placeholder="点击「发送请求」获取响应..."></textarea>
+    </div>
+
+  </div>
+
+  <!-- ========== 前端业务逻辑脚本 ========== -->
+  <script nonce="{{NONCE}}">
+(function() {
+  'use strict';
+
+  // ====== 最先挂载：全局 JS 错误捕获，把错误上报到 Extension Host（否则只会白屏看不到错） ======
+  function reportRuntimeError(message, source, lineno, colno, error) {
+    try {
+      var data = {
+        message: message && (typeof message === 'string' ? message : (message.message || String(message))),
+        source: (source || '') + (lineno ? (':' + lineno + (colno ? ':' + colno : '')) : ''),
+        stack: error && error.stack
+      };
+      if (typeof acquireVsCodeApi === 'function') {
+        acquireVsCodeApi().postMessage({ type: 'runtimeError', data: data });
+      }
+      console.error('[Webview Runtime Error]', data);
+    } catch (e) { /* 上报代码自身不能再抛错 */ }
+  }
+  window.onerror = function(msg, src, ln, col, err) { reportRuntimeError(msg, src, ln, col, err); return true; };
+  window.addEventListener('unhandledrejection', function(ev) {
+    var reason = ev && ev.reason;
+    reportRuntimeError(
+      (reason && (reason.message || String(reason))) || 'Unhandled Promise rejection',
+      reason && (reason.fileName || reason.sourceURL),
+      reason && reason.lineNumber,
+      reason && reason.columnNumber,
+      reason
+    );
+  });
+
+  // ===== 兼容非 VSCode 环境兜底 =====
+  var vscodeApi = (typeof acquireVsCodeApi === 'function')
+    ? acquireVsCodeApi()
+    : {
+        postMessage: function(m) { console.log('[mock vscode postMessage]', m); },
+        getState: function() { return {}; },
+        setState: function(s) {}
+      };
+
+  // ===== DOM 元素引用 =====
+  var $ = function(id) { return document.getElementById(id); };
+  var systemPromptEl = $('systemPrompt');
+  var userPromptEl = $('userPrompt');
+  var temperatureEl = $('temperature');
+  var topPEl = $('topP');
+  var maxTokensEl = $('maxTokens');
+  var modelEl = $('model');
+  var btnSend = $('btnSend');
+  var btnSaveTpl = $('btnSaveTpl');
+  var btnClear = $('btnClear');
+  var resultRawEl = $('resultRaw');
+  var resultRenderedEl = $('resultRendered');
+  var templateListEl = $('templateList');
+  var settingsBar = $('settingsBar');
+  var usageHintEl = $('usageHint');
+
+  var isSending = false;
+
+  // ===== Toast 轻提示 =====
+  function toast(msg, type) {
+    type = type || 'info';
+    var el = document.createElement('div');
+    el.className = 'toast toast-' + type;
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function() {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity 0.3s';
+      setTimeout(function() { el.remove(); }, 320);
+    }, 2500);
+  }
+
+  // ===== 采集参数 =====
+  function collectParams() {
+    return {
+      temperature: parseFloat(temperatureEl.value) || 1.0,
+      top_p: parseFloat(topPEl.value) || 1.0,
+      max_tokens: parseInt(maxTokensEl.value, 10) || 2048,
+      model: modelEl.value.trim() || 'deepseek-chat'
+    };
+  }
+
+  // ===== 发送请求 =====
+  function sendRequest() {
+    if (isSending) {
+      toast('已有请求进行中，请稍候', 'info');
+      return;
+    }
+    if (!userPromptEl.value.trim()) {
+      toast('User Prompt 不能为空', 'error');
+      return;
+    }
+    isSending = true;
+    btnSend.disabled = true;
+    btnSend.innerHTML = '<span class="loading"></span> 请求中...';
+    resultRawEl.value = '';
+    resultRenderedEl.style.display = 'none';
+    usageHintEl.textContent = '';
+
+    vscodeApi.postMessage({
+      type: 'sendRequest',
+      data: {
+        systemPrompt: systemPromptEl.value,
+        userPrompt: userPromptEl.value,
+        params: collectParams()
+      }
+    });
+  }
+
+  // ===== 保存模板 =====
+  // 【关键修复】VSCode Webview 默认禁用原生 window.prompt()/alert()/confirm()，会静默无反应
+  // 所以这里不在前端弹输入框，而是把数据发给 Extension Host，由 vscode.window.showInputBox 弹窗
+  function saveTemplate() {
+    // 先做基本校验（不拦，但是给个提示）
+    if (!systemPromptEl.value && !userPromptEl.value) {
+      showToast('System 和 User Prompt 都为空，不建议保存空模板', 'warn');
+    }
+    vscodeApi.postMessage({
+      type: 'requestSaveTemplate',
+      data: {
+        systemPrompt: systemPromptEl.value,
+        userPrompt: userPromptEl.value,
+        params: collectParams()
+      }
+    });
+  }
+
+  // ===== 清空结果 =====
+  btnClear.addEventListener('click', function() {
+    resultRawEl.value = '';
+    resultRenderedEl.innerHTML = '';
+    resultRenderedEl.style.display = 'none';
+    usageHintEl.textContent = '';
+  });
+
+  btnSend.addEventListener('click', sendRequest);
+  btnSaveTpl.addEventListener('click', saveTemplate);
+
+  // ===== 代码块解析：把 markdown 风格的 ```lang ... ``` 替换为带复制按钮的代码块 =====
+  function parseCodeBlocks(text) {
+    if (!text) { return document.createDocumentFragment(); }
+    var frag = document.createDocumentFragment();
+
+    // 正则：匹配 ```lang?\n内容\n```
+    var regex = /\`\`\`([a-zA-Z0-9_+-]*)\n([\s\S]*?)\`\`\`/g;
+    var lastIndex = 0;
+    var match;
+
+    while ((match = regex.exec(text)) !== null) {
+      // 前置普通文本
+      if (match.index > lastIndex) {
+        var beforeText = text.slice(lastIndex, match.index);
+        frag.appendChild(document.createTextNode(beforeText));
+      }
+      var lang = match[1] || '';
+      var code = match[2];
+      // 构造代码块 DOM
+      var block = document.createElement('div');
+      block.className = 'code-block';
+      var header = document.createElement('div');
+      header.className = 'code-block-header';
+      var langSpan = document.createElement('span');
+      langSpan.className = 'code-lang';
+      langSpan.textContent = lang || 'code';
+      var copyBtn = document.createElement('button');
+      copyBtn.className = 'mini-btn';
+      copyBtn.textContent = '\ud83d\udccb 复制代码';
+      copyBtn.addEventListener('click', (function(captureCode) {
+        return function() {
+          vscodeApi.postMessage({ type: 'copyCode', data: { code: captureCode } });
+        };
+      })(code));
+      header.appendChild(langSpan);
+      header.appendChild(copyBtn);
+      block.appendChild(header);
+      var pre = document.createElement('pre');
+      pre.textContent = code;
+      block.appendChild(pre);
+      frag.appendChild(block);
+      lastIndex = match.index + match[0].length;
+    }
+    // 剩余普通文本
+    if (lastIndex < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+    return frag;
+  }
+
+  // ===== 接收 Extension 消息 =====
+  window.addEventListener('message', function(event) {
+    var msg = event.data;
+    if (!msg || !msg.type) return;
+
+    switch (msg.type) {
+      case 'responseSuccess': {
+        isSending = false;
+        btnSend.disabled = false;
+        btnSend.textContent = '\ud83d\ude80 发送请求';
+        var content = msg.data.content || '';
+        resultRawEl.value = content;
+        // 渲染代码块版本
+        resultRenderedEl.innerHTML = '';
+        var frag = parseCodeBlocks(content);
+        if (frag && frag.hasChildNodes()) {
+          resultRenderedEl.appendChild(frag);
+          resultRenderedEl.style.display = 'block';
+        } else {
+          resultRenderedEl.style.display = 'none';
+        }
+        // 使用量
+        var u = msg.data.usage;
+        if (u) {
+          usageHintEl.textContent = 'tokens: prompt=' + (u.prompt_tokens || 0) +
+            ' / completion=' + (u.completion_tokens || 0) +
+            ' / total=' + (u.total_tokens || 0);
+        }
+        toast('请求成功', 'success');
+        break;
+      }
+      case 'responseError': {
+        isSending = false;
+        btnSend.disabled = false;
+        btnSend.textContent = '\ud83d\ude80 发送请求';
+        var errMsg = '[错误] ' + (msg.data.message || '未知错误');
+        resultRawEl.value = errMsg;
+        resultRenderedEl.style.display = 'none';
+        toast(msg.data.message || '请求失败', 'error');
+        break;
+      }
+      case 'templatesList': {
+        renderTemplateList(msg.data || []);
+        break;
+      }
+      case 'templateSaved': {
+        toast('模板已保存：' + msg.data.name, 'success');
+        break;
+      }
+      case 'templateLoaded': {
+        var t = msg.data;
+        systemPromptEl.value = t.systemPrompt || '';
+        userPromptEl.value = t.userPrompt || '';
+        if (t.params) {
+          temperatureEl.value = (t.params.temperature != null) ? t.params.temperature : 1.0;
+          topPEl.value = (t.params.top_p != null) ? t.params.top_p : 1.0;
+          maxTokensEl.value = (t.params.max_tokens != null) ? t.params.max_tokens : 2048;
+          modelEl.value = t.params.model || 'deepseek-chat';
+        }
+        toast('已加载模板：' + t.name, 'success');
+        break;
+      }
+      case 'templateDeleted': {
+        toast('模板已删除', 'info');
+        break;
+      }
+      case 'settingsInfo': {
+        renderSettingsBar(msg.data);
+        // 把默认模型填到输入框（若为空）
+        if (!modelEl.value.trim() && msg.data.defaultModel) {
+          modelEl.value = msg.data.defaultModel;
+        }
+        break;
+      }
+      case 'copyResult': {
+        if (msg.data.success) toast(msg.data.message, 'success');
+        else toast(msg.data.message, 'error');
+        break;
+      }
+    }
+  });
+
+  // ===== 渲染模板列表 =====
+  function renderTemplateList(list) {
+    if (!list || list.length === 0) {
+      templateListEl.innerHTML = '<div class="empty-tpl">暂无模板，保存后会出现在这里</div>';
+      return;
+    }
+    templateListEl.innerHTML = '';
+    list.forEach(function(tpl) {
+      var item = document.createElement('div');
+      item.className = 'template-item';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'template-name';
+      var date = new Date(tpl.createdAt || Date.now());
+      var dateStr = (date.getMonth() + 1) + '/' + date.getDate() + ' ' +
+        String(date.getHours()).padStart(2, '0') + ':' +
+        String(date.getMinutes()).padStart(2, '0');
+      nameSpan.textContent = tpl.name + '  (' + dateStr + ')';
+      nameSpan.title = 'System: ' + String(tpl.systemPrompt || '').slice(0, 100) +
+        '\nUser: ' + String(tpl.userPrompt || '').slice(0, 100);
+
+      var actions = document.createElement('div');
+      actions.className = 'template-actions';
+      var loadBtn = document.createElement('button');
+      loadBtn.className = 'mini-btn';
+      loadBtn.textContent = '加载';
+      loadBtn.addEventListener('click', function() {
+        vscodeApi.postMessage({ type: 'loadTemplate', data: { id: tpl.id } });
+      });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'mini-btn';
+      delBtn.textContent = '删除';
+      delBtn.style.borderColor = '#7a2717';
+      delBtn.addEventListener('click', function() {
+        // 【修复删除无反应】Webview 中 window.confirm() 被 VSCode 静默禁用，改为发消息给 Extension Host 弹窗确认
+        vscodeApi.postMessage({ type: 'requestDeleteTemplate', data: { id: tpl.id } });
+      });
+      actions.appendChild(loadBtn);
+      actions.appendChild(delBtn);
+      item.appendChild(nameSpan);
+      item.appendChild(actions);
+      templateListEl.appendChild(item);
+    });
+  }
+
+  // ===== 渲染设置提示条 =====
+  function renderSettingsBar(info) {
+    if (!info) return;
+    settingsBar.style.display = 'flex';
+    if (info.apiKeySet) {
+      settingsBar.classList.remove('settings-alert');
+      settingsBar.classList.add('settings-ok');
+      settingsBar.innerHTML =
+        '<div>\u2705 API Key 已配置 &nbsp;|&nbsp; BaseUrl: <code style="font-size:11px;opacity:0.85;">' + escapeHtml(info.baseUrl) + '</code></div>' +
+        '<button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" id="btnOpenSettings">修改配置</button>';
+    } else {
+      settingsBar.classList.remove('settings-ok');
+      settingsBar.classList.add('settings-alert');
+      settingsBar.innerHTML =
+        '<div>\u26a0\ufe0f API Key 未配置，请先设置 deepseekHarness.apiKey</div>' +
+        '<button class="btn" style="padding:2px 8px;font-size:11px;" id="btnOpenSettings">去配置</button>';
+    }
+    var btn = $('btnOpenSettings');
+    if (btn) btn.addEventListener('click', function() {
+      vscodeApi.postMessage({ type: 'openSettings' });
+    });
+  }
+
+  // ===== HTML 转义 =====
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ===== 初始化：拉取设置 & 模板列表 =====
+  function init() {
+    // 脚本正常执行完毕：把顶部占位提示条改为「成功」并自动隐藏
+    var statusEl = document.getElementById('__initStatus');
+    if (statusEl) {
+      statusEl.style.color = '#0a0';
+      statusEl.innerHTML = '&#9989; 面板初始化成功，若顶部无 Key 配置提示条，请先在设置中填写 deepseekHarness.apiKey';
+      setTimeout(function() { statusEl.style.display = 'none'; }, 5000);
+    }
+    vscodeApi.postMessage({ type: 'getSettings' });
+    vscodeApi.postMessage({ type: 'loadTemplates' });
+  }
+  init();
+
+})();
+  </script>
+</body>
+</html>

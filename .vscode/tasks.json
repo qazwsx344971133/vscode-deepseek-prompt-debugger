@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": ["$tsc"],
+      "label": "npm: compile",
+      "detail": "TypeScript 编译 src → out",
+      "group": "build"
+    },
+    {
+      "type": "npm",
+      "script": "watch",
+      "problemMatcher": ["$tsc-watch"],
+      "label": "npm: watch",
+      "detail": "TypeScript 监听模式（增量编译）",
+      "isBackground": true
+    }
+  ]
+}

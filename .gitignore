@@ -1,0 +1,69 @@
+# ========== Node.js / npm ==========
+# 依赖目录（通过 package-lock.json + npm install 还原，不要上传）
+node_modules/
+
+# npm 缓存 / 日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# 可选的 npm 缓存目录
+.npm
+.cache/
+
+# ========== TypeScript 编译产物 ==========
+# tsc 输出的 .js / .js.map（源码在 src/，可通过 npm run compile 重新生成）
+out/
+dist/
+build/
+
+# ========== 环境变量 / 密钥 ==========
+# ⚠️ 绝对不要把 API Key 写进 .env 文件并上传到仓库！
+# 本项目推荐在 VSCode 用户设置中配置 deepseekHarness.apiKey，不需要 .env
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.secrets
+
+# ========== 系统 / 编辑器 ==========
+# macOS 生成的桌面服务文件
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Windows 资源管理器缩略图缓存
+ehthumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+
+# VSCode 用户级别的工作区缓存（.vscode/launch.json 和 tasks.json 是项目公共配置，应当保留）
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+.vscode/.history/
+.history/
+
+# JetBrains 系列（可选，防止用其他 IDE 打开时产生的文件被提交）
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ========== VSCode 扩展打包临时文件 ==========
+# vsce package 命令生成的 .vsix 安装包（二进制，可选发布到 Release 而不是 Git 仓库）
+*.vsix
+
+# vsce 打包缓存
+.vscode-test/
+*.vsixmanifest
+
+# ========== 测试 / 覆盖率 ==========
+coverage/
+.nyc_output/

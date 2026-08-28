@@ -1,0 +1,77 @@
+{
+  "name": "deepseek-harness",
+  "displayName": "DeepSeek Harness",
+  "description": "DeepSeek 提示词调试工具 - 侧边栏 Webview 面板，兼容 OpenAI 接口协议",
+  "version": "0.0.1",
+  "publisher": "deepseek-harness",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:deepseekHarnessPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "deepseek-harness",
+          "title": "DeepSeek Harness",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "deepseek-harness": [
+        {
+          "type": "webview",
+          "id": "deepseekHarnessPanel",
+          "name": "Prompt 调试面板"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "DeepSeek Harness",
+      "properties": {
+        "deepseekHarness.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepSeek API Key（兼容 OpenAI 协议），建议在 VSCode 设置中配置"
+        },
+        "deepseekHarness.baseUrl": {
+          "type": "string",
+          "default": "https://api.deepseek.com",
+          "description": "API 基础地址，默认 DeepSeek 官方地址，可改为其他兼容 OpenAI 协议的地址"
+        },
+        "deepseekHarness.defaultModel": {
+          "type": "string",
+          "default": "deepseek-chat",
+          "description": "默认使用的模型名称"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^18.19.0",
+    "typescript": "^5.3.3",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.5"
+  }
+}
