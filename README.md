@@ -1,4 +1,5 @@
-# DeepSeek Harness
+# vscode-deepseek-prompt-debugger
+
 
 DeepSeek 提示词调试工具 - VSCode 侧边栏 Webview 面板插件，兼容 OpenAI 接口协议，用于快速调试 System / User Prompt 与采样参数。
 
